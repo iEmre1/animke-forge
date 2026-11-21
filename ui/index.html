@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data: https://s4.anilist.co; media-src http://127.0.0.1:*" />
+    <title>Animke Forge</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Başlık çubuğu (Windows'un küçült/büyüt/kapat düğmeleri sağda, onlara yer bırakılır) -->
+    <header class="titlebar">
+      <img class="tb-logo" src="../assets/icon.png" alt="" />
+      <span class="tb-name">Animke Forge</span>
+      <span class="tb-sep">›</span>
+      <span id="tb-page" class="tb-page">Pano</span>
+      <span class="tb-spacer"></span>
+      <span id="badge" class="badge">…</span>
+      <button id="pause" class="tb-btn" type="button" title="Duraklat / devam et">
+        <span id="pause-icon" class="ico"></span><span id="pause-text">Duraklat</span>
+      </button>
+    </header>
+
+    <div class="shell">
+      <!-- Sol menü -->
+      <nav id="rail" class="rail">
+        <div class="rail-top">
+          <button class="rail-btn active" data-view="dashboard" data-tip="Pano" type="button"></button>
+          <button class="rail-btn" data-view="upload" data-tip="Yükle (sürükle-bırak)" type="button"><span id="upload-dot" class="rail-count warn hidden"></span></button>
+          <button class="rail-btn" data-view="queue" data-tip="Sıra" type="button"><span id="queue-dot" class="rail-count hidden"></span></button>
+          <button class="rail-btn" data-view="history" data-tip="Geçmiş" type="button"></button>
+          <button class="rail-btn" data-view="logs" data-tip="Kayıt" type="button"></button>
+          <button class="rail-btn" data-view="settings" data-tip="Ayarlar" type="button"></button>
+          <button class="rail-btn" data-view="guide" data-tip="Rehber" type="button"></button>
+        </div>
+        <div class="rail-bottom">
+          <button id="rail-update" class="rail-btn update hidden" data-tip="Güncellemeyi kur" type="button"></button>
+          <button id="rail-site" class="rail-btn" data-tip="Fansub panelini aç" type="button"></button>
+          <button id="rail-account" class="rail-avatar" data-view="settings" data-tip="Hesap" type="button">?</button>
+          <button id="rail-quit" class="rail-btn danger" data-tip="Kapat" type="button"></button>
+        </div>
+      </nav>
+
+      <main class="content">
+        <!-- Giriş yapılmamışken -->
+        <section id="welcome" class="welcome hidden">
+          <div class="welcome-card">
+            <img src="../assets/icon.png" alt="" class="welcome-logo" />
+            <h1>Animke Forge</h1>
+            <p class="muted">Fansubunun bölümlerini senin bilgisayarında hazırlar (1080p/720p, altyazı, fontlar) ve doğrudan Animke'ye yükler.</p>
+
+            <div id="login-idle">
+              <button id="login-start" class="btn primary big" type="button">Animke hesabınla giriş yap</button>
+              <p class="muted small">Tarayıcı açılır; Animke'de giriş yapmışsan "Bu bilgisayarı bağla"ya basman yeterli. Şifren bu programa yazılmaz.</p>
+            </div>
+
+            <div id="login-waiting" class="hidden">
+              <p>Tarayıcıda onay bekleniyor… Sayfadaki kod bununla aynı olmalı:</p>
+              <div id="login-code" class="code">····-····</div>
+              <div class="row center">
+                <button id="login-open" class="btn" type="button">Tarayıcıda tekrar aç</button>
+                <button id="login-cancel" class="btn" type="button">Vazgeç</button>
+              </div>
+            </div>
+
+            <p id="welcome-error" class="error"></p>
+
+            <details class="advanced">
+              <summary>Anahtarla bağlan (sunucular için)</summary>
+              <div class="row">
+                <input id="welcome-token" type="password" placeholder="awk_..." autocomplete="off" spellcheck="false" />
+                <button id="welcome-save" class="btn" type="button">Bağlan</button>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <!-- Pano -->
+        <section id="view-dashboard" class="view">
+          <div class="hero" id="hero">
+            <div class="hero-top">
+              <div class="min0">
+                <p class="eyebrow" id="hero-eyebrow">Şu anki iş</p>
+                <h2 id="hero-title" class="hero-title">Yeni iş bekleniyor</h2>
+                <p id="hero-sub" class="muted"></p>
+              </div>
+              <div id="hero-pct" class="hero-pct"></div>
+            </div>
+            <div class="bar big"><div id="bar-fill"></div></div>
+            <div class="steps" id="steps">
+              <span data-step="downloading">İndirme</span>
+              <span data-step="encoding">Kodlama</span>
+              <span data-step="uploading">Yükleme</span>
+              <span data-step="done">Yayında</span>
+            </div>
+          </div>
+
+          <div class="tiles">
+            <div class="tile"><span class="tile-label">Bu oturumda</span><span id="t-done" class="tile-value">0</span><span class="tile-hint">bölüm yayına girdi</span></div>
+            <div class="tile"><span class="tile-label">Yüklenen</span><span id="t-bytes" class="tile-value">0 MB</span><span class="tile-hint">Animke'ye gönderildi</span></div>
+            <div class="tile"><span class="tile-label">Ortalama süre</span><span id="t-avg" class="tile-value">—</span><span class="tile-hint">bölüm başına</span></div>
+            <div class="tile"><span class="tile-label">Sırada</span><span id="t-queue" class="tile-value">0</span><span class="tile-hint">bölüm bekliyor</span></div>
+          </div>
+
+          <div class="grid2">
+            <div class="card">
+              <div class="card-head"><h3>Bu bilgisayar</h3></div>
+              <div id="device" class="muted">Bağlanılıyor…</div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Son işler</h3><button class="link" data-goto="history" type="button">Tümü</button></div>
+              <ul id="recent-mini" class="list"></ul>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- Yükle: sürükle-bırak ve izlenen klasör -->
+        <section id="view-upload" class="view hidden">
+          <div id="dropzone" class="dropzone">
+            <div class="dz-icon" id="dz-icon"></div>
+            <h2>Bölüm dosyalarını buraya sürükle</h2>
+            <p class="muted">Forge dosyayı senin bilgisayarında hazırlayıp yayına alır; ham dosya hiçbir yere yüklenmez. Altyazı dosyası (aynı adlı .ass/.srt) yanındaysa o kullanılır.</p>
+            <div class="row center">
+              <button id="pick-files" class="btn primary" type="button">Dosya seç</button>
+            </div>
+          </div>
+          <div id="local-blocked" class="notice warn hidden">Bu bilgisayar bir fansub ekibine bağlı değil; kendi dosyasından bölüm yükleyemez. (Yalnızca sitedeki sıradaki bölümleri işler.)</div>
+          <div id="watch-line" class="watch-line"></div>
+          <div class="card">
+            <div class="card-head"><h3>Dosyalar</h3><button id="local-clear" class="link" type="button">Bitenleri temizle</button></div>
+            <ul id="local-list" class="local-list"></ul>
+          </div>
+        </section>
+
+        <!-- Önizleme ve opening/ending işaretleme -->
+        <section id="view-preview" class="view hidden">
+          <div id="preview-empty" class="card"><p class="muted">Bekleyen önizleme yok. Forge'a sürüklediğin bir bölüm kodlanınca burada açılır.</p></div>
+          <div id="preview-body" class="hidden">
+            <div class="card">
+              <div class="card-head"><h3>Önizleme</h3><span id="pv-title" class="pill"></span></div>
+              <p class="muted small">Altyazı kaymış mı, fontlar doğru mu? Kareler altyazı basılarak çıkarıldı. Sorun yoksa opening/ending'i işaretleyip yayına al.</p>
+              <div id="pv-frames" class="frames"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Opening / Ending işaretle</h3><button id="pv-suggest" class="link hidden" type="button">Önceki bölümdekini kullan</button></div>
+              <video id="pv-video" controls preload="metadata"></video>
+              <div class="marks">
+                <div class="mark" data-type="op">
+                  <b>Opening</b>
+                  <span class="mark-time" data-show="op">—</span>
+                  <button class="btn" data-set="op-start" type="button">Başı burası</button>
+                  <button class="btn" data-set="op-end" type="button">Sonu burası</button>
+                  <button class="link" data-clear="op" type="button">Temizle</button>
+                </div>
+                <div class="mark" data-type="ed">
+                  <b>Ending</b>
+                  <span class="mark-time" data-show="ed">—</span>
+                  <button class="btn" data-set="ed-start" type="button">Başı burası</button>
+                  <button class="btn" data-set="ed-end" type="button">Sonu burası</button>
+                  <button class="link" data-clear="ed" type="button">Temizle</button>
+                </div>
+              </div>
+              <p class="muted small">Videoyu opening'in başladığı yere getir, "Başı burası"na bas; bittiği yerde "Sonu burası". İşaretlersen sitedeki "İntro'yu Atla" bu bölümde tam bu zamanları kullanır. İstemezsen boş bırak.</p>
+            </div>
+            <div class="savebar">
+              <span id="pv-note" class="muted small"></span>
+              <button id="pv-cancel" class="btn danger" type="button">Vazgeç</button>
+              <button id="pv-approve" class="btn primary" type="button">Yayına al</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Sıra -->
+        <section id="view-queue" class="view hidden">
+          <div class="card fill">
+            <div class="card-head"><h3>Sıradaki bölümler</h3><span id="queue-count" class="pill"></span></div>
+            <p class="muted small">Forge önce kendi ekibinin bölümlerini alır; onaylıysa diğer ekiplerin bölümlerine de yardım eder.</p>
+            <ul id="queue" class="list roomy"></ul>
+          </div>
+        </section>
+
+        <!-- Geçmiş -->
+        <section id="view-history" class="view hidden">
+          <div class="card fill">
+            <div class="card-head"><h3>Bu oturumda işlenenler</h3></div>
+            <ul id="recent" class="list roomy"></ul>
+          </div>
+        </section>
+
+        <!-- Kayıt -->
+        <section id="view-logs" class="view hidden">
+          <div class="card fill">
+            <div class="card-head"><h3>Kayıt</h3><button id="copy-logs" class="link" type="button">Kopyala</button></div>
+            <pre id="logs"></pre>
+          </div>
+        </section>
+
+
+        <!-- Rehber -->
+        <section id="view-guide" class="view hidden guide">
+          <div class="card">
+            <h2>Animke Forge nedir?</h2>
+            <p>Fansubunun bölümlerini Animke'de yayına hazırlayan programdır. Videoyu 1080p (ve yavaş internet için 720p) H.264'e çevirir, altyazıyı ve fontları ayırır, Animke'nin video deposuna yükler. Bölüm sitede "Animke" kaynağı olarak hemen yayına girer.</p>
+            <p>Forge senin bilgisayarının ekran kartını (NVIDIA, Intel, AMD) kullanır; ekran kartı yoksa işlemciyle çalışır. Bilgisayar açık olduğu sürece arka planda (saatin yanındaki simgede) çalışır.</p>
+          </div>
+          <div class="card">
+            <h2>Bölüm yüklemenin üç yolu</h2>
+            <h4>1. Sürükle-bırak (en hızlı)</h4>
+            <p><b>Yükle</b> sekmesine bölüm dosyalarını sürükle ya da "Dosya seç"e bas. Forge dosya adından animeyi, sezonu ve bölümü tahmin eder; karttan kontrol edip <b>Yükle</b>'ye basarsın. Dosya senin bilgisayarında hazırlanır, ham dosya hiçbir yere yüklenmez; yalnızca bitmiş hâli gider. Bir seriyi bir kez onayladıktan sonra Forge onu hatırlar.</p>
+            <h4>2. İzlenen klasör (otomatik)</h4>
+            <p>Ayarlar → Klasörler'den bir klasör seç. Encode programının çıktısını o klasöre kaydedersen bölüm hazır olur olmaz kendiliğinden yayına girer. Forge dosyanın kopyalanması bitene kadar bekler; tanıdığı serileri sormadan yükler, ilk kez gördüğü seriler için <b>Yükle</b> sekmesinde onay ister. Yüklenen dosya "Yüklendi" alt klasörüne taşınır.</p>
+            <h4>3. Sitedeki Fansub Paneli</h4>
+            <p>Panelden yüklenen bölümler sıraya girer. Bölümü kim işler: önce <b>yükleyen kişinin kendi Forge'u</b>, o kapalıysa ekibinin Forge'ları, sonra diğer ekiplerin onaylı Forge'ları, en son Animke'nin sunucusu. Öncelikli Forge 8 dakika içinde almazsa sıradaki alır; hiçbir bölüm takılı kalmaz.</p>
+          </div>
+          <div class="card">
+            <h2>Altyazı ve fontlar</h2>
+            <p>Altyazı (ASS) MKV'nin içindeyse otomatik çıkarılır. Ayrı dosyaysa videoyla <b>aynı adla</b> yanına koy (ör. <code>Frieren - 05.mkv</code> ve <code>Frieren - 05.ass</code>). Fontlar MKV'ye gömülü olmalı. Altyazıda kullanılıp dosyada olmayan font varsa Forge uyarır; o yazılar sitede varsayılan yazı tipiyle görünür.</p>
+            <p>Görüntüye basılmış (hardsub) ya da PGS altyazı kabul edilmez; Türkçe dublajlarda altyazı gerekmez (dosya adında "Dublaj" geçmesi yeterli ya da kartta işaretle).</p>
+          </div>
+          <div class="card">
+            <h2>Önizleme ve opening/ending</h2>
+            <p>Sürüklenen bölümler kodlandıktan sonra, yüklemeden önce <b>Önizleme</b> açılır: altyazı basılmış birkaç kare ve oynatılabilen video. Altyazı kaymışsa "Vazgeç" dersin; hiçbir şey yayına girmez.</p>
+            <p>Videoda opening'in başladığı yere gelip <b>Başı burası</b>, bittiği yerde <b>Sonu burası</b>'na bas; ending için de aynısı. Sitede bu bölümde "İntro'yu Atla" ve otomatik atlama tam bu zamanları kullanır (işaretlemezsen AniSkip'ten bakılır). Aynı serinin sonraki bölümünde <b>Önceki bölümdekini kullan</b> ile tek tıkla doldurup gerekirse düzeltirsin. Önizlemeyi Ayarlar'dan kapatabilirsin.</p>
+            <p>Opening/ending'i <b>sitede de</b> işaretleyebilirsin: Fansub Paneli'nde yayındaki her bölümün yanında <b>OP/ED işaretle</b> düğmesi var. Encode yapmayan ekip arkadaşların da oradan işaretleyebilir ya da düzeltebilir.</p>
+          </div>
+          <div class="card">
+            <h2>Ayarlar</h2>
+            <ul class="plain">
+              <li><b>Kodlayıcı:</b> Otomatik çoğu zaman en iyisidir; ekran kartı sorun çıkarırsa "Yalnızca işlemci".</li>
+              <li><b>Kalite:</b> 1080p + 720p önerilir; yalnızca 1080p daha hızlı biter.</li>
+              <li><b>Diğer ekiplere yardım:</b> Yönetici onayladıysa boştayken başka ekiplerin bölümlerini de işler.</li>
+              <li><b>Yükleme hız sınırı:</b> Yüklerken internetin yavaşlamasın diye (Mbit/sn).</li>
+              <li><b>Çalışma saatleri:</b> Örneğin yalnızca gece çalışsın.</li>
+              <li><b>Çalışma klasörü:</b> Geçici dosyaların yeri. C: diski doluysa başka bir diske al; bölüm başına kaynak boyutunun yaklaşık 2,5 katı boş yer gerekir.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h2>Sık sorulanlar</h2>
+            <h4>Bilgisayarımı kapatırsam ne olur?</h4>
+            <p>Sitedeki sıradan aldığı iş sıraya geri döner, başka bir Forge alır. Sürüklediğin dosya yarıda kalır; Forge'u açınca yeniden sürüklersin.</p>
+            <h4>Şifrem güvende mi?</h4>
+            <p>Şifren Forge'a hiç yazılmaz. Giriş yapınca site yalnızca bu bilgisayara özel bir anahtar verir. Fansub Paneli'nden ya da Ayarlar → Çıkış yap ile iptal edebilirsin. Ekipten ayrılırsan Forge kendiliğinden durur.</p>
+            <h4>Bölüm yanlış animeye yüklendi</h4>
+            <p>Fansub Paneli'nden bölümü kaldır; Forge'da Ayarlar → Hatırlanan seriler'den yanlış eşleşmeyi sil ve dosyayı yeniden sürükle.</p>
+            <h4>Bir sorun var</h4>
+            <p><b>Kayıt</b> sekmesinden "Kopyala"ya basıp Animke yöneticilerine gönder.</p>
+          </div>
+        </section>
+
+        <!-- Ayarlar -->
+        <form id="view-settings" class="view hidden" autocomplete="off">
+          <div class="card">
+            <div class="card-head"><h3>Hesap</h3></div>
+            <div class="row between">
+              <div id="s-account" class="muted">Giriş yapılmamış.</div>
+              <button id="s-logout" class="btn danger" type="button">Çıkış yap</button>
+            </div>
+            <details class="advanced">
+              <summary>Anahtarla bağlan (sunucular için)</summary>
+              <label class="field">
+                <input id="s-token" type="password" placeholder="awk_..." spellcheck="false" />
+                <small id="s-token-hint" class="muted"></small>
+              </label>
+            </details>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>Kodlama</h3></div>
+            <label class="field">
+              <span>Kodlayıcı</span>
+              <select id="s-encoder">
+                <option value="auto">Otomatik (ekran kartı varsa onu kullan)</option>
+                <option value="nvenc">NVIDIA ekran kartı (NVENC)</option>
+                <option value="qsv">Intel ekran kartı (Quick Sync)</option>
+                <option value="amf">AMD ekran kartı (AMF)</option>
+                <option value="cpu">Yalnızca işlemci (yavaş, en uyumlu)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Kalite</span>
+              <select id="s-quality">
+                <option value="both">1080p + 720p (önerilen; yavaş internette 720p açılır)</option>
+                <option value="1080">Yalnızca 1080p (daha hızlı)</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>Çalışma</h3></div>
+            <label class="switch"><input id="s-help" type="checkbox" /><i></i><span>Diğer ekiplerin bölümlerine de yardım et <small class="muted">(yönetici onayı gerekir)</small></span></label>
+            <label class="switch"><input id="s-reels" type="checkbox" /><i></i><span>Boştayken Reels videolarını küçült <small class="muted">(onaylı bilgisayarlarda)</small></span></label>
+            <label class="field">
+              <span>Yükleme hız sınırı (Mbit/sn, 0 = sınırsız)</span>
+              <input id="s-upload" type="number" min="0" max="10000" step="1" />
+              <small class="muted">Yüklerken internetin yavaşlamasın diye.</small>
+            </label>
+            <label class="switch"><input id="s-sched" type="checkbox" /><i></i><span>Yalnızca belirli saatlerde çalış</span></label>
+            <div class="row">
+              <input id="s-from" type="time" />
+              <span class="muted">–</span>
+              <input id="s-to" type="time" />
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>Klasörler</h3></div>
+            <label class="field">
+              <span>Çalışma klasörü <small class="muted">(indirilen kaynaklar ve kodlanan dosyalar burada tutulur, iş bitince silinir; boş: sistemin geçici klasörü)</small></span>
+              <div class="row">
+                <input id="s-workdir" type="text" placeholder="ör. D:\AnimkeForge" />
+                <button class="btn" data-pick="s-workdir" type="button">Seç</button>
+              </div>
+            </label>
+            <label class="switch"><input id="s-watch" type="checkbox" /><i></i><span>İzlenen klasör <small class="muted">(içine atılan bölümler kendiliğinden yüklenir)</small></span></label>
+            <div class="row">
+              <input id="s-watchdir" type="text" placeholder="ör. D:\Animke Yüklenecek" />
+              <button class="btn" data-pick="s-watchdir" type="button">Seç</button>
+            </div>
+            <label class="field">
+              <span>Yüklenen dosya</span>
+              <select id="s-after">
+                <option value="move">Klasördeki "Yüklendi" alt klasörüne taşı</option>
+                <option value="keep">Yerinde bırak (bir daha yüklenmez)</option>
+              </select>
+            </label>
+            <label class="switch"><input id="s-preview" type="checkbox" /><i></i><span>Yayına almadan önce önizleme göster <small class="muted">(sürüklenen dosyalarda; opening/ending de burada işaretlenir)</small></span></label>
+            <div class="card-head sub"><h3>Hatırlanan seriler</h3></div>
+            <ul id="s-mappings" class="list"></ul>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h3>Diğer</h3></div>
+            <label class="switch"><input id="s-notify-done" type="checkbox" /><i></i><span>Bölüm yayına girince bildir</span></label>
+            <label class="switch"><input id="s-notify-fail" type="checkbox" /><i></i><span>Hata olunca bildir</span></label>
+            <label class="switch"><input id="s-login" type="checkbox" /><i></i><span>Bilgisayar açılınca arka planda başlat</span></label>
+            <label class="field">
+              <span>Kendi ffmpeg'in <small class="muted">(boş: uygulamayla gelen)</small></span>
+              <input id="s-ffmpeg" type="text" placeholder="ör. C:\ffmpeg\bin\ffmpeg.exe" />
+            </label>
+          </div>
+
+          <div class="savebar">
+            <span id="s-saved" class="muted"></span>
+            <span id="version" class="muted small"></span>
+            <button class="btn primary" type="submit">Kaydet</button>
+          </div>
+        </form>
+      </main>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="icons.js"></script>
+    <div id="drop-overlay" class="drop-overlay hidden"><div>Bırak, Forge yüklesin</div></div>
+    <script src="app.js"></script>
+    <script src="local-ui.js"></script>
+  </body>
+</html>

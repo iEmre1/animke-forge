@@ -1,0 +1,30 @@
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
+
+contextBridge.exposeInMainWorld("isleyici", {
+  onState: (cb) => ipcRenderer.on("state", (_e, s) => cb(s)),
+  onUpdate: (cb) => ipcRenderer.on("update", (_e, u) => cb(u)),
+  onLogin: (cb) => ipcRenderer.on("login", (_e, l) => cb(l)),
+  loginStart: () => ipcRenderer.send("login-start"),
+  loginCancel: () => ipcRenderer.send("login-cancel"),
+  loginOpen: () => ipcRenderer.send("login-open"),
+  logout: () => ipcRenderer.invoke("logout"),
+  getSettings: () => ipcRenderer.invoke("get-settings"),
+  saveSettings: (patch) => ipcRenderer.invoke("save-settings", patch),
+  togglePause: () => ipcRenderer.send("toggle-pause"),
+  installUpdate: () => ipcRenderer.send("install-update"),
+  quit: () => ipcRenderer.send("quit"),
+  openSite: () => ipcRenderer.send("open-site"),
+  // Sürükle-bırak: bırakılan dosyanın bilgisayardaki yolu
+  pathOf: (file) => webUtils.getPathForFile(file),
+  localAdd: (paths) => ipcRenderer.invoke("local-add", paths),
+  localPickFiles: () => ipcRenderer.invoke("local-pick-files"),
+  localConfirm: (id, form) => ipcRenderer.invoke("local-confirm", id, form),
+  localSearch: (id, q) => ipcRenderer.invoke("local-search", id, q),
+  localRemove: (id) => ipcRenderer.send("local-remove", id),
+  localClear: () => ipcRenderer.send("local-clear"),
+  localMappings: () => ipcRenderer.invoke("local-mappings"),
+  localForget: (key) => ipcRenderer.send("local-forget", key),
+  previewDecision: (d) => ipcRenderer.send("preview-decision", d),
+  pickFolder: (title) => ipcRenderer.invoke("pick-folder", title),
+  openFolder: (p) => ipcRenderer.send("open-folder", p),
+});
