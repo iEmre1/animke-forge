@@ -1,7 +1,7 @@
 {
   "name": "animke-forge",
   "productName": "Animke Forge",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Animke Forge: fansubların bölümlerini hazırlayıp (1080p/720p, altyazı, fontlar) Animke'ye yükleyen program",
   "author": "Animke",
   "private": true,

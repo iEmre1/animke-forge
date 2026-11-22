@@ -6,7 +6,7 @@ const { EventEmitter } = require("node:events");
 const { Api, putFile, VERSION } = require("./api");
 const { downloadSource } = require("./download");
 const media = require("./media");
-const { missingFonts } = require("./fontcheck");
+const { missingFonts, findSystemFonts } = require("./fontcheck");
 const { ReelCompressor } = require("./reels");
 const preview = require("./preview");
 
@@ -367,7 +367,22 @@ class Engine extends EventEmitter {
       // 3b) Font denetimi: altyazıda kullanılıp dosyada olmayan fontlar
       const warnings = [];
       if (subFile) {
-        const missing = missingFonts(subFile, fontFiles);
+        let missing = missingFonts(subFile, fontFiles);
+        // Bu bilgisayarda yüklü olanlar bölüme eklenir (ör. Windows'la gelen Comic Sans MS).
+        if (missing.length) {
+          const { found } = findSystemFonts(missing);
+          if (found.length) {
+            const fontsDir = path.join(dir, "fonts");
+            fs.mkdirSync(fontsDir, { recursive: true });
+            for (const f of found) {
+              const target = path.join(fontsDir, path.basename(f.file));
+              if (!fs.existsSync(target)) fs.copyFileSync(f.file, target);
+              if (!fontFiles.includes(target)) fontFiles.push(target);
+            }
+            this.log(`Altyazıda kullanılan ama dosyada olmayan font bilgisayardan eklendi: ${found.map((f) => f.name).join(", ")}`);
+            missing = missingFonts(subFile, fontFiles);
+          }
+        }
         if (missing.length) {
           const list = missing.slice(0, 6).join(", ") + (missing.length > 6 ? ` +${missing.length - 6}` : "");
           warnings.push(`Eksik font: ${list}`);
