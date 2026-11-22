@@ -54,6 +54,7 @@ class LocalQueue {
       form: i.form,
       candidates: i.candidates || [],
       remembered: !!this.state.mappings[i.key],
+      lastSkips: this.state.mappings[i.key]?.lastSkips || null,
       progress: i.progress || 0,
       stage: i.stage || "",
     }));
@@ -150,6 +151,15 @@ class LocalQueue {
     if (!anilistId) return { error: "Anime seç." };
     if (!Number.isInteger(season) || season < 1 || season > 100) return { error: "Sezon 1-100 arası olmalı." };
     if (!Number.isInteger(episode) || episode < 0 || episode > 5000) return { error: "Bölüm numarasını yaz." };
+    const skips = [];
+    for (const s of Array.isArray(form.skips) ? form.skips : []) {
+      const start = Number(s?.start);
+      const end = Number(s?.end);
+      if (!["op", "ed"].includes(s?.type) || !Number.isFinite(start) || !Number.isFinite(end)) continue;
+      if (end - start < 5) return { error: `${s.type === "op" ? "Opening" : "Ending"} bitişi başlangıçtan en az 5 sn sonra olmalı.` };
+      if (end - start > 360) return { error: `${s.type === "op" ? "Opening" : "Ending"} 6 dakikadan uzun olamaz.` };
+      skips.push({ type: s.type, start, end });
+    }
     item.form = {
       anilistId,
       animeTitle: String(form.animeTitle || ""),
@@ -158,6 +168,7 @@ class LocalQueue {
       episode,
       dubbing: !!form.dubbing,
       credits: String(form.credits || "").slice(0, 200),
+      skips,
     };
     item.status = "ready";
     item.error = "";

@@ -147,20 +147,22 @@
               <div class="marks">
                 <div class="mark" data-type="op">
                   <b>Opening</b>
-                  <span class="mark-time" data-show="op">—</span>
+                  <input class="mark-in" data-in="op-start" placeholder="başı (1:30)" />
+                  <input class="mark-in" data-in="op-end" placeholder="sonu (3:00)" />
                   <button class="btn" data-set="op-start" type="button">Başı burası</button>
                   <button class="btn" data-set="op-end" type="button">Sonu burası</button>
                   <button class="link" data-clear="op" type="button">Temizle</button>
                 </div>
                 <div class="mark" data-type="ed">
                   <b>Ending</b>
-                  <span class="mark-time" data-show="ed">—</span>
+                  <input class="mark-in" data-in="ed-start" placeholder="başı" />
+                  <input class="mark-in" data-in="ed-end" placeholder="sonu" />
                   <button class="btn" data-set="ed-start" type="button">Başı burası</button>
                   <button class="btn" data-set="ed-end" type="button">Sonu burası</button>
                   <button class="link" data-clear="ed" type="button">Temizle</button>
                 </div>
               </div>
-              <p class="muted small">Videoyu opening'in başladığı yere getir, "Başı burası"na bas; bittiği yerde "Sonu burası". İşaretlersen sitedeki "İntro'yu Atla" bu bölümde tam bu zamanları kullanır. İstemezsen boş bırak.</p>
+              <p class="muted small">Zamanları yaz (ör. 1:30) ya da videoda o ana gelip "Başı burası / Sonu burası"na bas. İsteğe bağlı; boş bırakabilirsin.</p>
             </div>
             <div class="savebar">
               <span id="pv-note" class="muted small"></span>
@@ -323,7 +325,7 @@
                 <option value="keep">Yerinde bırak (bir daha yüklenmez)</option>
               </select>
             </label>
-            <label class="switch"><input id="s-preview" type="checkbox" /><i></i><span>Yayına almadan önce önizleme göster <small class="muted">(sürüklenen dosyalarda; opening/ending de burada işaretlenir)</small></span></label>
+            <label class="switch"><input id="s-preview" type="checkbox" /><i></i><span>Yayına almadan önce önizleme göster <small class="muted">(isteğe bağlı: altyazılı kareler ve video)</small></span></label>
             <div class="card-head sub"><h3>Hatırlanan seriler</h3></div>
             <ul id="s-mappings" class="list"></ul>
           </div>

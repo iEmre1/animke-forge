@@ -220,7 +220,7 @@ async function loadSettings() {
   $("s-watch").checked = s.watchEnabled;
   $("s-watchdir").value = s.watchDir;
   $("s-after").value = s.afterUpload;
-  $("s-preview").checked = s.preview;
+  $("s-preview").checked = s.previewBeforeUpload;
   $("s-saved").textContent = "";
   window.renderMappings?.();
 }
@@ -248,7 +248,7 @@ $("view-settings").addEventListener("submit", async (e) => {
     watchEnabled: $("s-watch").checked,
     watchDir: $("s-watchdir").value.trim(),
     afterUpload: $("s-after").value,
-    preview: $("s-preview").checked,
+    previewBeforeUpload: $("s-preview").checked,
   });
   if (res?.error) {
     $("s-saved").textContent = res.error;

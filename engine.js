@@ -198,6 +198,11 @@ class Engine extends EventEmitter {
     this.api
       .heartbeat(state, this.current?.kind === "job" ? this.current.id : "")
       .then((r) => {
+        // İş silindi / iptal edildi / başka bilgisayara geçti: bekletmeden bırak.
+        if (r?.jobValid === false && this.current?.kind === "job" && this.abort && !this.abort.signal.aborted) {
+          this.log("Bu iş sitede silinmiş ya da iptal edilmiş; bırakılıyor.");
+          this.abort.abort();
+        }
         if (this.device && typeof r?.approved === "boolean" && r.approved !== this.device.approved) {
           this.device.approved = r.approved;
           this.log(r.approved ? "Yönetici onayladı: artık tüm ekiplerin bölümleri işlenebilir." : "Onay kaldırıldı: yalnızca kendi ekibinin bölümleri.");
@@ -411,9 +416,9 @@ class Engine extends EventEmitter {
       }
 
       // 4c) Önizleme ve opening/ending işaretleme (Forge'a sürüklenen dosyalarda, ayar açıksa).
-      let skips = [];
+      let skips = job.item?.form?.skips || [];
       if (job.item && this.cfg.preview) {
-        const decision = await this.runPreview(job, { dir, out, subFile, hasFonts: fontFiles.length > 0, duration: picks.duration });
+        const decision = await this.runPreview(job, { dir, out, subFile, hasFonts: fontFiles.length > 0, duration: picks.duration, initial: skips });
         if (!decision.approve) throw new CanceledError("Önizlemede vazgeçildi.");
         skips = decision.skips || [];
       }
@@ -529,7 +534,7 @@ class Engine extends EventEmitter {
   }
 
   /** Önizleme hazırlar ve fansubun kararını bekler (yayına al / vazgeç + opening/ending). */
-  async runPreview(job, { dir, out, subFile, hasFonts, duration }) {
+  async runPreview(job, { dir, out, subFile, hasFonts, duration, initial = [] }) {
     await this.report(job, "encoding", 1, "Önizleme hazırlanıyor", true);
     const frames = await preview.frames(this.cfg, dir, out, subFile, hasFonts, duration).catch(() => []);
     const server = await preview.serveVideo(out);
@@ -543,6 +548,7 @@ class Engine extends EventEmitter {
       videoUrl: server.url,
       duration,
       suggest: job.item ? this.local.lastSkips(job.item) : null,
+      initial,
     };
     this.log("Önizleme hazır: yayına almadan önce kontrol et.");
     this.emit("preview", data);

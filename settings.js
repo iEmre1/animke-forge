@@ -32,8 +32,8 @@ const DEFAULTS = {
   watchDir: "",
   /** Yüklenen dosya: "move" → klasördeki "Yüklendi" alt klasörüne taşı, "keep" → yerinde bırak */
   afterUpload: "move",
-  /** Forge'a sürüklenen dosyalarda yayına almadan önce önizleme + opening/ending işaretleme */
-  preview: true,
+  /** Sürüklenen dosyalarda yayına almadan önce önizleme (isteğe bağlı, varsayılan kapalı) */
+  previewBeforeUpload: false,
 };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -62,7 +62,8 @@ function sanitize(raw) {
   s.watchEnabled = !!s.watchEnabled;
   s.watchDir = String(s.watchDir || "");
   if (!["move", "keep"].includes(s.afterUpload)) s.afterUpload = "move";
-  s.preview = s.preview !== false;
+  s.previewBeforeUpload = !!s.previewBeforeUpload;
+  delete s.preview;
   return s;
 }
 
@@ -177,7 +178,7 @@ function runtimeConfig(settings) {
     watchEnabled: settings.watchEnabled,
     watchDir: settings.watchDir,
     afterUpload: settings.afterUpload,
-    preview: settings.preview,
+    preview: settings.previewBeforeUpload,
     // Site "hello" yanıtıyla güncellenir.
     limits: { maxGb: 4, maxBytes: 4 * 1024 ** 3, minSeconds: 30, maxMinutes: 180 },
   };

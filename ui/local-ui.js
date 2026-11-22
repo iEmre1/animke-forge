@@ -4,6 +4,35 @@
   const api = window.isleyici;
   $("dz-icon").innerHTML = I.upload;
 
+  /** "1:30", "90", "1:02:03" → saniye; boş → undefined; geçersiz → NaN */
+  const parseT = (raw) => {
+    const s = String(raw || "").trim().replace(",", ".");
+    if (!s) return undefined;
+    if (!/^\d+(:\d{1,2}){0,2}(\.\d+)?$/.test(s)) return NaN;
+    return s.split(":").reduce((sum, p) => sum * 60 + Number(p), 0);
+  };
+  /** saniye → "1:30" (gerekirse "1:30.5") */
+  const fmtT = (sec) => {
+    if (sec === undefined || !Number.isFinite(sec)) return "";
+    const m = Math.floor(sec / 60);
+    const r = Math.round((sec - m * 60) * 10) / 10;
+    return `${m}:${String(Math.floor(r)).padStart(2, "0")}${r % 1 ? `.${Math.round((r % 1) * 10)}` : ""}`;
+  };
+  /** İki alanlı opening/ending girişlerinden liste; hata varsa { error } */
+  const readSkips = (get) => {
+    const out = [];
+    for (const [type, label] of [["op", "Opening"], ["ed", "Ending"]]) {
+      const a = parseT(get(`${type}-start`));
+      const b = parseT(get(`${type}-end`));
+      if (a === undefined && b === undefined) continue;
+      if (a === undefined || b === undefined) return { error: `${label} için başını ve sonunu yaz (ya da ikisini de boş bırak).` };
+      if (Number.isNaN(a) || Number.isNaN(b)) return { error: `${label} zamanı "1:30" ya da "90" gibi olmalı.` };
+      if (b - a < 5) return { error: `${label} sonu başından en az 5 sn sonra olmalı.` };
+      if (b - a > 360) return { error: `${label} 6 dakikadan uzun olamaz.` };
+      out.push({ type, start: a, end: b });
+    }
+    return { skips: out };
+  };
   const fmt = (t) => {
     if (!Number.isFinite(t)) return "—";
     const s = Math.max(0, Math.round(t));
@@ -89,6 +118,18 @@
           <label class="switch"><input type="checkbox" data-f="dubbing" ${item.form.dubbing ? "checked" : ""} /><i></i><span>Türkçe dublaj</span></label>
           <label class="field"><span>Emeği geçenler <small class="muted">(isteğe bağlı)</small></span><input type="text" data-f="credits" maxlength="200" value="${esc(item.form.credits || "")}" placeholder="Çeviri: … · Encode: …" /></label>
         </div>
+      </div>
+      <div class="lc-skips">
+        <div class="lc-skips-head"><span>Opening / Ending <small class="muted">(isteğe bağlı)</small></span>${
+          item.lastSkips?.length ? `<button class="link" data-act="prev-skips" type="button">Önceki bölümdekini kullan</button>` : ""
+        }</div>
+        <div class="lc-skips-grid">
+          <label><span>Opening başı</span><input type="text" data-k="op-start" placeholder="ör. 1:30" /></label>
+          <label><span>Opening sonu</span><input type="text" data-k="op-end" placeholder="ör. 3:00" /></label>
+          <label><span>Ending başı</span><input type="text" data-k="ed-start" placeholder="ör. 21:40" /></label>
+          <label><span>Ending sonu</span><input type="text" data-k="ed-end" placeholder="ör. 23:10" /></label>
+        </div>
+        <p class="muted small">Dakika:saniye olarak yaz. İzleyiciler opening ve ending'i tek tıkla atlayabilir.</p>
       </div>
       <p class="error" data-err>${esc(item.error || "")}</p>
       <div class="row end">
@@ -230,6 +271,14 @@
       return;
     }
     if (act === "sub-clear") api.localSubtitleClear(id);
+    if (act === "prev-skips") {
+      const item = (lastState?.local || []).find((i) => i.id === id);
+      for (const s of item?.lastSkips || []) {
+        card.querySelector(`[data-k="${s.type}-start"]`).value = fmtT(s.start);
+        card.querySelector(`[data-k="${s.type}-end"]`).value = fmtT(s.end);
+      }
+      return;
+    }
     if (act === "remove") api.localRemove(id);
     if (act === "open-preview") show("preview");
     if (act === "retry") {
@@ -239,7 +288,13 @@
     if (act === "confirm") {
       const d = drafts.get(id) || {};
       const val = (f) => card.querySelector(`[data-f="${f}"]`);
+      const sk = readSkips((k) => card.querySelector(`[data-k="${k}"]`).value);
+      if (sk.error) {
+        card.querySelector("[data-err]").textContent = sk.error;
+        return;
+      }
       const res = await api.localConfirm(id, {
+        skips: sk.skips,
         anilistId: d.anilistId,
         animeTitle: d.animeTitle,
         cover: d.cover,
@@ -263,11 +318,17 @@
   function renderMarks() {
     for (const t of ["op", "ed"]) {
       const m = pv?.marks[t] || {};
-      const el = document.querySelector(`[data-show="${t}"]`);
-      el.textContent = m.start !== undefined || m.end !== undefined ? `${fmt(m.start)} – ${fmt(m.end)}${m.start !== undefined && m.end !== undefined ? ` (${Math.round(m.end - m.start)} sn)` : ""}` : "—";
-      el.classList.toggle("ok", m.start !== undefined && m.end > m.start + 5);
+      document.querySelector(`[data-in="${t}-start"]`).value = fmtT(m.start);
+      document.querySelector(`[data-in="${t}-end"]`).value = fmtT(m.end);
     }
   }
+  document.querySelector(".marks").addEventListener("input", (e) => {
+    const key = e.target.dataset?.in;
+    if (!pv || !key) return;
+    const [t, which] = key.split("-");
+    const v = parseT(e.target.value);
+    pv.marks[t][which] = Number.isFinite(v) ? v : undefined;
+  });
   function renderPreview(s) {
     const p = s.preview;
     $("preview-empty").classList.toggle("hidden", !!p);
@@ -282,6 +343,7 @@
     }
     if (pv?.jobId === p.jobId) return;
     pv = { jobId: p.jobId, marks: { op: {}, ed: {} }, suggest: p.suggest };
+    for (const s of p.initial || []) pv.marks[s.type] = { start: s.start, end: s.end };
     $("pv-title").textContent = p.title;
     $("pv-frames").innerHTML = p.frames.length
       ? p.frames.map((f) => `<figure><img src="${f.src}" alt="" data-t="${f.time}" /><figcaption>${fmt(f.time)}</figcaption></figure>`).join("")
@@ -323,16 +385,12 @@
   });
   $("pv-approve").addEventListener("click", () => {
     if (!pv) return;
-    const skips = [];
-    for (const t of ["op", "ed"]) {
-      const m = pv.marks[t];
-      if (m.start === undefined && m.end === undefined) continue;
-      if (!(m.end > m.start + 5)) {
-        $("pv-note").textContent = `${t === "op" ? "Opening" : "Ending"} için başı ve sonunu işaretle (en az 5 sn) ya da temizle.`;
-        return;
-      }
-      skips.push({ type: t, start: m.start, end: m.end });
+    const sk = readSkips((k) => document.querySelector(`[data-in="${k}"]`).value);
+    if (sk.error) {
+      $("pv-note").textContent = sk.error;
+      return;
     }
+    const skips = sk.skips;
     video.pause();
     api.previewDecision({ approve: true, skips });
     toast("Yayına alınıyor…");

@@ -88,9 +88,12 @@ class Api {
   }
 }
 
+/** Bu kadar süre hiç ilerleme olmazsa (ya da depo cevap vermezse) yükleme kesilip yeniden denenir. */
+const STALL_MS = 60_000;
+
 /**
  * Dosyayı imzalı adrese PUT eder. İlerleme bildirir, isteğe bağlı hız sınırı uygular,
- * geçici hatalarda 3 kez yeniden dener.
+ * takılırsa ya da geçici hata olursa 3 kez yeniden dener.
  */
 async function putFile(url, headers, file, { onProgress, signal, limitBps = 0 } = {}) {
   const size = fs.statSync(file).size;
@@ -116,13 +119,29 @@ async function putFile(url, headers, file, { onProgress, signal, limitBps = 0 } 
       },
     });
     const stream = fs.createReadStream(file, { highWaterMark: 1024 * 1024 }).pipe(meter);
+    // Kendi iptal sinyali: dışarıdan iptal ya da takılma (uzun süre ilerleme/cevap yok).
+    const ctrl = new AbortController();
+    const onAbort = () => ctrl.abort();
+    signal?.addEventListener("abort", onAbort, { once: true });
+    let lastSent = -1;
+    let lastMove = Date.now();
+    let stalled = false;
+    const watchdog = setInterval(() => {
+      if (sent !== lastSent) {
+        lastSent = sent;
+        lastMove = Date.now();
+      } else if (Date.now() - lastMove > STALL_MS) {
+        stalled = true;
+        ctrl.abort();
+      }
+    }, 5_000);
     try {
       const res = await fetch(url, {
         method: "PUT",
         headers: { ...headers, "Content-Length": String(size) },
         body: Readable.toWeb(stream),
         duplex: "half",
-        signal,
+        signal: ctrl.signal,
       });
       if (res.ok) {
         onProgress?.(size, size);
@@ -133,8 +152,10 @@ async function putFile(url, headers, file, { onProgress, signal, limitBps = 0 } 
       if (res.status === 403 || res.status === 400) break; // imza/izin sorunu: tekrar denemek işe yaramaz
     } catch (err) {
       if (signal?.aborted) throw new Error("İptal edildi.");
-      lastError = new Error(`Yükleme kesildi: ${err?.cause?.code || err?.message || err}`);
+      lastError = new Error(stalled ? "Yükleme takıldı: 1 dakika boyunca ilerleme olmadı (internet bağlantını kontrol et)." : `Yükleme kesildi: ${err?.cause?.code || err?.message || err}`);
     } finally {
+      clearInterval(watchdog);
+      signal?.removeEventListener("abort", onAbort);
       stream.destroy();
     }
     await new Promise((r) => setTimeout(r, 3000 * attempt));

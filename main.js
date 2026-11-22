@@ -248,7 +248,7 @@ app.whenReady().then(async () => {
       const allowed = [
         "token", "quality", "encoder", "help", "reels", "uploadLimitMbps", "schedule",
         "workDir", "ffmpegPath", "notifyDone", "notifyFail", "startAtLogin",
-        "watchEnabled", "watchDir", "afterUpload", "preview",
+        "watchEnabled", "watchDir", "afterUpload", "previewBeforeUpload",
       ];
       const clean = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowed.includes(k)));
       const next = settings.update(clean);
