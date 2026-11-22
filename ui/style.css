@@ -338,3 +338,16 @@ body.logged-out #pause { display: none; }
 .guide p { margin: 0 0 8px; color: #c7cee0; font-size: 13.5px; line-height: 1.6; user-select: text; }
 .guide code { font: 12.5px "Cascadia Mono", Consolas, monospace; background: #1b2438; padding: 1px 5px; border-radius: 5px; }
 .plain { margin: 0; padding-left: 18px; color: #c7cee0; font-size: 13.5px; line-height: 1.7; }
+
+/* Onay kartında altyazı */
+.subbox { margin-top: 10px; }
+.subdrop {
+  width: 100%; text-align: left; display: flex; flex-direction: column; gap: 3px; cursor: pointer;
+  padding: 12px 14px; border-radius: 10px; border: 1.5px dashed rgba(124, 135, 156, .45); background: transparent; color: var(--text); font: inherit;
+}
+.subdrop:hover { border-color: var(--brand); background: var(--brand-soft); }
+.subdrop b { font-size: 13px; color: #7cc4f5; }
+.subdrop span { font-size: 12px; color: var(--muted); }
+.sub-on { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(52, 211, 153, .08); border: 1px solid rgba(52, 211, 153, .3); }
+.sub-on svg { width: 16px; height: 16px; color: var(--ok); flex-shrink: 0; }
+.sub-on .min0 { flex: 1; }

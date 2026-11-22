@@ -44,7 +44,17 @@
     $("drop-overlay").classList.add("hidden");
     if (document.body.classList.contains("logged-out")) return;
     const paths = [...(e.dataTransfer?.files || [])].map((f) => api.pathOf(f)).filter(Boolean);
-    void addPaths(paths);
+    const subs = paths.filter((p) => /\.(ass|ssa|srt)$/i.test(p));
+    const videos = paths.filter((p) => !/\.(ass|ssa|srt)$/i.test(p));
+    if (subs.length) {
+      // Altyazı: üzerine bırakılan karta; değilse onay bekleyen tek dosya varsa ona.
+      const card = e.target.closest?.(".lcard.confirm");
+      const waiting = (lastState?.local || []).filter((i) => i.status === "confirm");
+      const target = card?.dataset.id || (waiting.length === 1 ? waiting[0].id : "");
+      if (target) void api.localSubtitle(target, subs[0]).then((r) => r?.error && toast(r.error));
+      else toast("Altyazıyı hangi bölüme eklemek istiyorsan onun kartının üzerine bırak.");
+    }
+    void addPaths(videos);
   });
   $("pick-files").addEventListener("click", async () => {
     const res = await api.localPickFiles();
@@ -63,18 +73,19 @@
     return `
       <div class="lc-head">
         <div class="min0"><div class="li-title">${esc(item.name)}</div>
-        <div class="note">${esc(size(item.size))} · dosya adından: "${esc(p.title || "?")}"${p.season ? ` · S${p.season}` : ""}${p.episode !== null && p.episode !== undefined ? ` · B${p.episode}` : ""}${item.subtitle ? ` · altyazı: ${esc(item.subtitle)}` : ""}</div></div>
+        <div class="note">${esc(size(item.size))}${p.episode !== null && p.episode !== undefined ? ` · dosya adından: "${esc(p.title || "?")}"${p.season ? ` S${p.season}` : ""} B${p.episode}` : ""}</div></div>
         <span class="st warn">Onay bekliyor</span>
       </div>
       <div class="lc-grid">
         <div class="lc-anime">
           <div class="picked" data-picked>${pickedHtml(d)}</div>
-          <input type="text" data-q placeholder="Anime ara (AniList)…" value="${esc(p.title || "")}" />
+          <input type="text" data-q placeholder="Anime adını yaz… (orijinal ya da İngilizce adı)" value="" />
           <div class="cands" data-cands>${candsHtml(item.candidates, d.anilistId)}</div>
+          <div class="subbox" data-sub>${subHtml(item)}</div>
         </div>
         <div class="lc-fields">
           <label class="field"><span>Sezon</span><input type="number" min="1" max="100" data-f="season" value="${esc(item.form.season || 1)}" /></label>
-          <label class="field"><span>Bölüm</span><input type="number" min="0" max="5000" data-f="episode" value="${item.form.episode ?? ""}" placeholder="?" /></label>
+          <label class="field"><span>Bölüm</span><input type="number" min="0" max="5000" data-f="episode" value="${item.form.episode ?? ""}" placeholder="ör. 5" /></label>
           <label class="switch"><input type="checkbox" data-f="dubbing" ${item.form.dubbing ? "checked" : ""} /><i></i><span>Türkçe dublaj</span></label>
           <label class="field"><span>Emeği geçenler <small class="muted">(isteğe bağlı)</small></span><input type="text" data-f="credits" maxlength="200" value="${esc(item.form.credits || "")}" placeholder="Çeviri: … · Encode: …" /></label>
         </div>
@@ -85,6 +96,10 @@
         <button class="btn primary" data-act="confirm" type="button">Yükle</button>
       </div>`;
   }
+  const subHtml = (item) =>
+    item.subtitle
+      ? `<div class="sub-on">${I.check}<div class="min0"><div class="li-title">${esc(item.subtitle)}</div><div class="note">${item.subtitleManual ? "Seçtiğin altyazı kullanılacak" : "Videonun yanında bulundu, bu kullanılacak"}</div></div><button class="link" data-act="sub-clear" type="button">Kaldır</button></div>`
+      : `<button class="subdrop" data-act="sub-pick" type="button"><b>+ Altyazı ekle (.ass / .srt)</b><span>Tıkla ya da altyazı dosyasını buraya sürükle. Eklemezsen MKV'nin içindeki altyazı kullanılır.</span></button>`;
   const pickedHtml = (d) =>
     d.anilistId
       ? `${d.cover ? `<img src="${esc(d.cover)}" alt="" />` : ""}<div class="min0"><div class="li-title">${esc(d.animeTitle || `#${d.anilistId}`)}</div><div class="note">AniList #${d.anilistId}</div></div>`
@@ -136,6 +151,7 @@
         // Kullanıcı yazarken kart yeniden çizilmez; yalnızca adaylar ve hata güncellenir.
         if (c.status !== "confirm") {
           c.el.innerHTML = confirmCard(item);
+          c.subSig = `${item.subtitle}|${item.subtitleManual}`;
         } else {
           const sig = JSON.stringify(item.candidates.map((x) => x.id)) + item.form.anilistId;
           if (sig !== c.sig) {
@@ -144,6 +160,9 @@
             c.el.querySelector("[data-cands]").innerHTML = candsHtml(item.candidates, d?.anilistId);
             c.el.querySelector("[data-picked]").innerHTML = pickedHtml(d || {});
           }
+          const subSig = `${item.subtitle}|${item.subtitleManual}`;
+          if (c.subSig !== subSig) c.el.querySelector("[data-sub]").innerHTML = subHtml(item);
+          c.subSig = subSig;
           c.el.querySelector("[data-err]").textContent = item.error || "";
         }
         c.sig = JSON.stringify(item.candidates.map((x) => x.id)) + item.form.anilistId;
@@ -205,6 +224,12 @@
       return;
     }
     const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "sub-pick") {
+      const r = await api.localSubtitle(id);
+      if (r?.error) toast(r.error);
+      return;
+    }
+    if (act === "sub-clear") api.localSubtitleClear(id);
     if (act === "remove") api.localRemove(id);
     if (act === "open-preview") show("preview");
     if (act === "retry") {

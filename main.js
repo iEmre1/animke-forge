@@ -279,6 +279,20 @@ app.whenReady().then(async () => {
     return { errors: results.filter((x) => x.error).map((x) => x.error) };
   });
   ipcMain.handle("local-confirm", (_e, id, form) => engine.local.confirm(String(id), form || {}));
+  ipcMain.handle("local-subtitle", async (_e, id, file) => {
+    let p = file ? String(file) : "";
+    if (!p) {
+      const r = await dialog.showOpenDialog(win, {
+        title: "Altyazı dosyasını seç",
+        properties: ["openFile"],
+        filters: [{ name: "Altyazı", extensions: ["ass", "ssa", "srt"] }],
+      });
+      if (r.canceled) return { canceled: true };
+      p = r.filePaths[0];
+    }
+    return engine.local.setSubtitle(String(id), p);
+  });
+  ipcMain.on("local-subtitle-clear", (_e, id) => engine.local.clearSubtitle(String(id)));
   ipcMain.handle("local-search", (_e, id, q) => engine.local.searchFor(String(id), String(q || "")));
   ipcMain.on("local-remove", (_e, id) => engine.local.remove(String(id)));
   ipcMain.on("local-clear", () => engine.local.clearFinished());

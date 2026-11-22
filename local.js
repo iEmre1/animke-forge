@@ -10,6 +10,7 @@ const crypto = require("node:crypto");
 const { parseName, seriesKey, sidecarSubtitle, VIDEO_EXT } = require("./parse");
 
 const WATCH_MS = 8_000;
+const SUB_RE = /\.(ass|ssa|srt)$/i;
 const MIN_BYTES = 5 * 1024 * 1024;
 
 class LocalQueue {
@@ -48,6 +49,7 @@ class LocalQueue {
       status: i.status,
       error: i.error || "",
       subtitle: i.subtitle ? path.basename(i.subtitle) : "",
+      subtitleManual: !!i.subtitleManual,
       parsed: i.parsed,
       form: i.form,
       candidates: i.candidates || [],
@@ -116,7 +118,9 @@ class LocalQueue {
       const res = await this.engine.api.searchAnime(q);
       item.candidates = (res.items || []).slice(0, 6);
       // Eşleşme yoksa ilk sonucu öner (fansub yine de onaylar).
-      if (!item.form.anilistId && item.candidates[0]) {
+      // Yalnızca dosya adı bir bölüme benziyorsa (bölüm numarası okunduysa) ilk sonuç önerilir;
+      // "Roblox 2026-11-19" gibi adlarda yanlış anime seçilmesin.
+      if (!item.form.anilistId && item.candidates[0] && item.parsed.episode !== null) {
         const c = item.candidates[0];
         item.form = { ...item.form, anilistId: c.id, animeTitle: c.title, cover: c.cover };
       }
@@ -170,6 +174,31 @@ class LocalQueue {
     this.save();
     this.changed();
     return { ok: true };
+  }
+
+  /** Altyazı dosyasını elle seç (.ass/.ssa/.srt); videonun içindekinin yerine bu kullanılır. */
+  setSubtitle(id, file) {
+    const item = this.items.find((i) => i.id === id);
+    if (!item || !["confirm", "failed", "canceled"].includes(item.status)) return { error: "Dosya bulunamadı." };
+    if (!SUB_RE.test(String(file))) return { error: "Altyazı .ass, .ssa ya da .srt olmalı." };
+    try {
+      const st = fs.statSync(file);
+      if (!st.isFile() || st.size > 20 * 1024 * 1024) return { error: "Altyazı dosyası okunamadı ya da çok büyük." };
+    } catch {
+      return { error: "Altyazı dosyası bulunamadı." };
+    }
+    item.subtitle = file;
+    item.subtitleManual = true;
+    this.changed();
+    return { ok: true };
+  }
+
+  clearSubtitle(id) {
+    const item = this.items.find((i) => i.id === id);
+    if (!item) return;
+    item.subtitle = null;
+    item.subtitleManual = false;
+    this.changed();
   }
 
   remove(id) {

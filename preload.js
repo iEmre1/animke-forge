@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld("isleyici", {
   localPickFiles: () => ipcRenderer.invoke("local-pick-files"),
   localConfirm: (id, form) => ipcRenderer.invoke("local-confirm", id, form),
   localSearch: (id, q) => ipcRenderer.invoke("local-search", id, q),
+  localSubtitle: (id, file) => ipcRenderer.invoke("local-subtitle", id, file || ""),
+  localSubtitleClear: (id) => ipcRenderer.send("local-subtitle-clear", id),
   localRemove: (id) => ipcRenderer.send("local-remove", id),
   localClear: () => ipcRenderer.send("local-clear"),
   localMappings: () => ipcRenderer.invoke("local-mappings"),
